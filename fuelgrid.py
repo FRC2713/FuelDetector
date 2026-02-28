@@ -1,4 +1,12 @@
 import fuelcluster
+import ntcore
+
+inst = ntcore.NetworkTableInstance.getDefault()
+inst.startClient4("clusterClient")
+inst.setServer("localhost", 5810)
+
+fuelTable = inst.getTable("fuelDetector")
+fuelValues = fuelTable.getStringTopic("fuelData").subscribe("")
 
 class FuelGrid: 
     fuel_chance_threshold: float = 80.0
@@ -9,13 +17,25 @@ class FuelGrid:
     def __init__(self, width: int, height: int):
         self.grid_width: int = width - 1
         self.grid_height: int = height - 1
-        self.grid = list[list[int]]
-        self.cluster_grid = list[list[fuelcluster.FuelCluster]]
+        self.grid: list[list[int]] = []
+        for w in range(width):
+            self.grid.append([])
+            for h in range(height):
+                self.grid[w].append(0)
+        self.cluster_grid: list[list[fuelcluster.FuelCluster]] = []
+        for w in range(width):
+            self.cluster_grid.append([])
+            for h in range(height):
+                self.cluster_grid[w].append(None)
     
     def add_fuel(self, fuelString: str):
-        fuelParams = fuelString.split(",")
-        if(fuelParams[4] > FuelGrid.fuel_chance_threshold):
-            self.grid[round(fuelParams[0] / (FuelGrid.image_width / self.grid_width))][round(fuelParams[1] / (FuelGrid.image_height / self.grid_height))] += 1
+        if(not(len(fuelString) == 0)):
+            fuelParams = fuelString.split(",")
+            if(fuelParams[4] > FuelGrid.fuel_chance_threshold):
+                print(fuelParams[4])
+                x = round(fuelParams[0] / (FuelGrid.image_width / self.grid_width))
+                y = round(fuelParams[1] / (FuelGrid.image_height / self.grid_height))
+                self.grid[x][y] += 1
     
     def split_fuel_string(self, string: str):
         string_list = string.split(";")
@@ -25,8 +45,9 @@ class FuelGrid:
         clusters: list[fuelcluster.FuelCluster] = []
         width: int = self.grid_width
         height: int = self.grid_height
-        for w in width:
-            for h in height:
+
+        for w in range(width):
+            for h in range(height):
                 square: int = self.grid[w][h]
                 cluster: fuelcluster.FuelCluster = self.cluster_grid[w][h]
                 if ((square >= FuelGrid.fuel_density_threshold) and not(cluster is None)):
@@ -42,5 +63,22 @@ class FuelGrid:
                         print("ATTENTION: This statement is supposed to be unreachable.")
                 else:
                     c: fuelcluster.FuelCluster = fuelcluster.FuelCluster()
-                    c.add_grid_cell(square)
+                    c.add_grid_cell(w, h, square)
                     self.cluster_grid[w][h] = c
+                    clusters.append(c)
+        return clusters
+    def largest_cluster(self, clusters: list[fuelcluster.FuelCluster]):
+        largest = fuelcluster.FuelCluster()
+        for cluster in clusters:
+            if (cluster.fuel_count > largest.fuel_count):
+                largest = cluster
+        return largest
+
+grid = FuelGrid(10, 4)
+while True:
+    values = fuelValues.get()
+    fuels = values.split(";")
+    for fuel in fuels:
+        grid.add_fuel(fuel)
+    #print(grid.grid)
+    #print(grid.largest_cluster(grid.find_clusters()).fuel_count)
