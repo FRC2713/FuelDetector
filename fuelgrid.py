@@ -6,17 +6,18 @@ inst.startClient4("clusterClient")
 inst.setServer("localhost", 5810)
 
 fuelTable = inst.getTable("fuelDetector")
-fuelValues = fuelTable.getStringTopic("fuelData").subscribe("")
+fuelValues = fuelTable.getStringTopic("fuelData").subscribe("639,42,1,1,1")
 
 class FuelGrid: 
-    fuel_chance_threshold: float = 80.0
+    fuel_chance_threshold: float = 0.8
     fuel_density_threshold: int = 1
     image_width: int = 640
     image_height: int = 480
 
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int, height: int, FOV: float):
         self.grid_width: int = width - 1
         self.grid_height: int = height - 1
+        self.FOV: float = FOV
         self.grid: list[list[int]] = []
         for w in range(width):
             self.grid.append([])
@@ -31,10 +32,11 @@ class FuelGrid:
     def add_fuel(self, fuelString: str):
         if(not(len(fuelString) == 0)):
             fuelParams = fuelString.split(",")
-            if(fuelParams[4] > FuelGrid.fuel_chance_threshold):
-                print(fuelParams[4])
-                x = round(fuelParams[0] / (FuelGrid.image_width / self.grid_width))
-                y = round(fuelParams[1] / (FuelGrid.image_height / self.grid_height))
+            if(float(fuelParams[4]) > FuelGrid.fuel_chance_threshold):
+                #print(fuelParams[4])
+                x = round(float(fuelParams[0]) / (FuelGrid.image_width / self.grid_width))
+                y = round(float(fuelParams[1]) / (FuelGrid.image_height / self.grid_height))
+                #print(x)
                 self.grid[x][y] += 1
     
     def split_fuel_string(self, string: str):
@@ -45,9 +47,8 @@ class FuelGrid:
         clusters: list[fuelcluster.FuelCluster] = []
         width: int = self.grid_width
         height: int = self.grid_height
-
-        for w in range(width):
-            for h in range(height):
+        for w in range(width + 1):
+            for h in range(height + 1):
                 square: int = self.grid[w][h]
                 cluster: fuelcluster.FuelCluster = self.cluster_grid[w][h]
                 if ((square >= FuelGrid.fuel_density_threshold) and not(cluster is None)):
@@ -73,12 +74,40 @@ class FuelGrid:
             if (cluster.fuel_count > largest.fuel_count):
                 largest = cluster
         return largest
+    def get_heading(self, cluster: fuelcluster.FuelCluster):
+        #print(cluster.fuel_count)
+        if (cluster.fuel_count > 0):
+            cluster.avg_x
 
-grid = FuelGrid(10, 4)
+            avgX = cluster.avg_x + (FuelGrid.image_width / 2)
+            degreesPerPixel: float = self.FOV / FuelGrid.image_width
+            return -(avgX * degreesPerPixel)
+        else:
+            return 0 #Defualt value- assume that the nearest fuel cluster is directly in front of the robot
+
+    def purge_grid(self):
+        #Reset all grid values to defaults; should be called at the end or begining of every frame to avoid fuel that was previously there from influenciong current calculations
+        self.grid = []
+        for w in range(self.grid_width + 1):
+            self.grid.append([])
+            for h in range(self.grid_height + 1):
+                self.grid[w].append(0)
+        self.cluster_grid = []
+        for w in range(self.grid_width + 1):
+            self.cluster_grid.append([])
+            for h in range(self.grid_height + 1):
+                self.cluster_grid[w].append(None)
+
+grid = FuelGrid(10, 4, 60)
 while True:
     values = fuelValues.get()
+    #print(values)
     fuels = values.split(";")
     for fuel in fuels:
         grid.add_fuel(fuel)
     #print(grid.grid)
-    #print(grid.largest_cluster(grid.find_clusters()).fuel_count)
+    clusters = grid.find_clusters()
+    large = grid.largest_cluster(clusters)
+    #print(large.fuel_count)
+    print(grid.get_heading(large))
+    grid.purge_grid()

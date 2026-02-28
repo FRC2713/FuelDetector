@@ -9,11 +9,11 @@ class FuelCluster:
         if(not(self.fuel_count == 0)):
             weighted_cell = cell_fuel_count / self.fuel_count
             weighted_cluster = self.fuel_count - cell_fuel_count / self.fuel_count
-            if(self.avg_x is None):
+            if(not(self.avg_x is None)):
                 self.avg_x = ((self.avg_x * weighted_cluster) + (cell_x * weighted_cell)) / 2
             else:
                 self.avg_x = cell_x
-            if(self.avg_y is None):
+            if(not(self.avg_y is None)):
                 self.avg_y = ((self.avg_y * weighted_cluster) + (cell_y * weighted_cell)) / 2
             else:
                 self.avg_y = cell_y
