@@ -1,9 +1,8 @@
 import fuelcluster
 import ntcore
+import ntinit
 
-inst = ntcore.NetworkTableInstance.getDefault()
-inst.startClient4("clusterClient")
-inst.setServer("127.0.0.1", 5810)
+inst = ntinit.getNT("clusterClient")
 
 fuelTable = inst.getTable("fuelDetector")
 fuelValues = fuelTable.getStringTopic("fuelData").subscribe("")

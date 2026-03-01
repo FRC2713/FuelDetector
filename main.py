@@ -1,13 +1,10 @@
 from ultralytics import YOLO
 import ntcore
+import ntinit
 
 # Load a model
 model = YOLO("./best302.pt")  # Usign older model as it's better at its job than newer ones and isn't greyscale
-inst = ntcore.NetworkTableInstance.getDefault()
-# start a NT4 client
-inst.startClient4("detectorClient")
-# connect to a roboRIO with team number TEAM
-inst.setServer("127.0.0.1", 5810)
+inst = ntinit.getNT("detectorClient")
 fuelTable = inst.getTable("fuelDetector")
 fuelPublish = fuelTable.getStringTopic("fuelData").publish()
 
