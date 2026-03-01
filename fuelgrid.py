@@ -3,10 +3,11 @@ import ntcore
 
 inst = ntcore.NetworkTableInstance.getDefault()
 inst.startClient4("clusterClient")
-inst.setServer("localhost", 5810)
+inst.setServer("127.0.0.1", 5810)
 
 fuelTable = inst.getTable("fuelDetector")
-fuelValues = fuelTable.getStringTopic("fuelData").subscribe("639,42,1,1,1")
+fuelValues = fuelTable.getStringTopic("fuelData").subscribe("")
+fuelHeading= fuelTable.getDoubleTopic("clusterHeading").publish()
 
 class FuelGrid: 
     fuel_chance_threshold: float = 0.8
@@ -79,8 +80,9 @@ class FuelGrid:
         if (cluster.fuel_count > 0):
             cluster.avg_x
 
-            avgX = cluster.avg_x + (FuelGrid.image_width / 2)
+            avgX = (cluster.avg_x * (FuelGrid.image_width / grid.grid_width)) - (FuelGrid.image_width / 2)
             degreesPerPixel: float = self.FOV / FuelGrid.image_width
+            #print(str(avgX) + ", " + str(cluster.avg_x))
             return -(avgX * degreesPerPixel)
         else:
             return 0 #Defualt value- assume that the nearest fuel cluster is directly in front of the robot
@@ -98,7 +100,8 @@ class FuelGrid:
             for h in range(self.grid_height + 1):
                 self.cluster_grid[w].append(None)
 
-grid = FuelGrid(10, 4, 60)
+grid = FuelGrid(64, 48, 60)
+print("Program started")
 while True:
     values = fuelValues.get()
     #print(values)
@@ -109,5 +112,7 @@ while True:
     clusters = grid.find_clusters()
     large = grid.largest_cluster(clusters)
     #print(large.fuel_count)
-    print(grid.get_heading(large))
+    heading: float = grid.get_heading(large)
+    print(heading)
+    fuelHeading.set(heading)
     grid.purge_grid()

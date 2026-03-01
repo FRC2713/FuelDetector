@@ -7,7 +7,7 @@ inst = ntcore.NetworkTableInstance.getDefault()
 # start a NT4 client
 inst.startClient4("detectorClient")
 # connect to a roboRIO with team number TEAM
-inst.setServer("localhost", 5810)
+inst.setServer("127.0.0.1", 5810)
 fuelTable = inst.getTable("fuelDetector")
 fuelPublish = fuelTable.getStringTopic("fuelData").publish()
 
