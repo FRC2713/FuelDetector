@@ -79,7 +79,7 @@ class FuelGrid:
         if (cluster.fuel_count > 0):
             cluster.avg_x
 
-            avgX = (cluster.avg_x * (FuelGrid.image_width / grid.grid_width)) - (FuelGrid.image_width / 2)
+            avgX = (cluster.avg_x * (FuelGrid.image_width / self.grid_width)) - (FuelGrid.image_width / 2)
             degreesPerPixel: float = self.FOV / FuelGrid.image_width
             #print(str(avgX) + ", " + str(cluster.avg_x))
             return -(avgX * degreesPerPixel)
@@ -98,6 +98,7 @@ class FuelGrid:
             self.cluster_grid.append([])
             for h in range(self.grid_height + 1):
                 self.cluster_grid[w].append(None)
+
 
 grid = FuelGrid(64, 48, 60)
 print("Program started")
