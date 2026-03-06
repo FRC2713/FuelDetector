@@ -9,6 +9,7 @@ time.sleep(1) # Make a delay long enough to read
 fuelTable = inst.getTable("fuelDetector")
 fuelValues = fuelTable.getStringTopic("fuelData").subscribe("")
 fuelHeading= fuelTable.getDoubleTopic("clusterHeading").publish()
+totalFuel = fuelTable.getIntegerTopic("totalFuel").publish()
 
 class FuelGrid: 
     fuel_chance_threshold: float = 0.8
@@ -19,6 +20,7 @@ class FuelGrid:
     def __init__(self, width: int, height: int, FOV: float):
         self.grid_width: int = width - 1
         self.grid_height: int = height - 1
+        self.total_fuel: int = 0
         self.FOV: float = FOV
         self.grid: list[list[int]] = []
         for w in range(width):
@@ -40,6 +42,7 @@ class FuelGrid:
                 y = round(float(fuelParams[1]) / (FuelGrid.image_height / self.grid_height))
                 #print(x)
                 self.grid[x][y] += 1
+                self.total_fuel += 1
     
     def split_fuel_string(self, string: str):
         string_list = string.split(";")
@@ -117,4 +120,5 @@ while True:
     heading: float = grid.get_heading(large)
     print(heading)
     fuelHeading.set(heading)
+    totalFuel.set(grid.total_fuel)
     grid.purge_grid()
