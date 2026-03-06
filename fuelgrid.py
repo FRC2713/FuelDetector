@@ -1,8 +1,10 @@
+import time
 import fuelcluster
 import ntcore
 import ntinit
 
 inst = ntinit.getNT("clusterClient")
+time.sleep(1)
 
 fuelTable = inst.getTable("fuelDetector")
 fuelValues = fuelTable.getStringTopic("fuelData").subscribe("")
