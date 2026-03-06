@@ -4,7 +4,7 @@ import ntcore
 import ntinit
 
 inst = ntinit.getNT("clusterClient")
-time.sleep(1)
+time.sleep(1) # Make a delay long enough to read
 
 fuelTable = inst.getTable("fuelDetector")
 fuelValues = fuelTable.getStringTopic("fuelData").subscribe("")

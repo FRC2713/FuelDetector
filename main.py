@@ -1,10 +1,11 @@
+import time
 from ultralytics import YOLO
-import ntcore
 import ntinit
 
 # Load a model
 model = YOLO("./best302.pt")  # Usign older model as it's better at its job than newer ones and isn't greyscale
 inst = ntinit.getNT("detectorClient")
+time.sleep(1) # Make a delay long enough to read
 fuelTable = inst.getTable("fuelDetector")
 fuelPublish = fuelTable.getStringTopic("fuelData").publish()
 
