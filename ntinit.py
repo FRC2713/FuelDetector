@@ -13,13 +13,14 @@ def getNT(clientName: str):
     time.sleep(0.1)
     time.sleep(0.1) # Don't ask. I don't know.
     connected = robotConnected.get()
-    print(connected)
+    print("10.27.13.2 connection found? " + str(connected))
     if(not(connected)):
         inst.setServer("127.0.0.1")
         time.sleep(0.1)
         time.sleep(0.1)
         connected = robotConnected.get()
-        print(connected)
+        print()
+        print("127.0.0.1 (localhost) connection found? " + str(connected))
         if(connected):
             print("Server found at 127.0.0.1 (localhost)")
             return inst
