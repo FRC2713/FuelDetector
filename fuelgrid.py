@@ -12,7 +12,7 @@ fuelHeading= fuelTable.getDoubleTopic("clusterHeading").publish()
 totalFuel = fuelTable.getIntegerTopic("totalFuel").publish()
 
 class FuelGrid: 
-    fuel_chance_threshold: float = 0.8
+    fuel_chance_threshold: float = 0.75
     fuel_density_threshold: int = 1
     image_width: int = 640
     image_height: int = 480
@@ -37,17 +37,30 @@ class FuelGrid:
         if(not(len(fuelString) == 0)):
             fuelParams = fuelString.split(",")
             if(float(fuelParams[4]) > FuelGrid.fuel_chance_threshold):
-                #print(fuelParams[4])
-                x = round(float(fuelParams[0]) / (FuelGrid.image_width / self.grid_width))
-                y = round(float(fuelParams[1]) / (FuelGrid.image_height / self.grid_height))
-                #print(x)
+                x = round(float(fuelParams[0]) / (FuelGrid.image_width / (self.grid_width)))
+                y = round(float(fuelParams[1]) / (FuelGrid.image_height / (self.grid_height)))
+
+                top_y = round((float(fuelParams[1]) - (float(fuelParams[3]) / 2)) / (FuelGrid.image_height / (self.grid_height)))
+                bottom_y = round((float(fuelParams[1]) + (float(fuelParams[3]) / 2)) / (FuelGrid.image_height / (self.grid_height)))
+                right_x = round((float(fuelParams[0]) + (float(fuelParams[2]) / 2)) / (FuelGrid.image_width / (self.grid_width)))
+                left_x = round((float(fuelParams[0]) - (float(fuelParams[2]) / 2)) / (FuelGrid.image_width / (self.grid_width)))
+
                 self.grid[x][y] += 1
                 self.total_fuel += 1
+
+                if(not(right_x == x)):
+                    self.grid[right_x][y] += 1
+                if(not(left_x == x)):
+                    self.grid[left_x][y] += 1
+                if(not(top_y == y)):
+                    self.grid[x][top_y] += 1
+                if(not(bottom_y == y)):
+                    self.grid[x][bottom_y] += 1
     
     def split_fuel_string(self, string: str):
         string_list = string.split(";")
         for fuel in string_list:
-            FuelGrid.addFuel(self, fuel)
+            self.add_fuel(fuel)
     def find_clusters(self):
         clusters: list[fuelcluster.FuelCluster] = []
         width: int = self.grid_width
@@ -55,6 +68,7 @@ class FuelGrid:
         for w in range(width + 1):
             for h in range(height + 1):
                 square: int = self.grid[w][h]
+                #print(str(self.grid[w][h]) + " fuels, at (" + str(w) + ", " + str(h) + ")")
                 cluster: fuelcluster.FuelCluster = self.cluster_grid[w][h]
                 if ((square >= FuelGrid.fuel_density_threshold) and not(cluster is None)):
                     if ((w + 1 < width) and not(self.cluster_grid[w + 1][h] is None)):
@@ -78,6 +92,7 @@ class FuelGrid:
         for cluster in clusters:
             if (cluster.fuel_count > largest.fuel_count):
                 largest = cluster
+        #print(largest.fuel_count)
         return largest
     def get_heading(self, cluster: fuelcluster.FuelCluster):
         #print(cluster.fuel_count)
@@ -103,22 +118,22 @@ class FuelGrid:
             self.cluster_grid.append([])
             for h in range(self.grid_height + 1):
                 self.cluster_grid[w].append(None)
+        self.total_fuel = 0
 
 
-grid = FuelGrid(64, 48, 60)
+grid = FuelGrid(3, 3, 60)
 print("Program started")
 while True:
     values = fuelValues.get()
     #print(values)
-    fuels = values.split(";")
-    for fuel in fuels:
-        grid.add_fuel(fuel)
-    #print(grid.grid)
+    
+    grid.split_fuel_string(values)
+    #print(grid.total_fuel)
     clusters = grid.find_clusters()
     large = grid.largest_cluster(clusters)
     #print(large.fuel_count)
     heading: float = grid.get_heading(large)
-    print(heading)
+    #print(heading)
     fuelHeading.set(heading)
     totalFuel.set(grid.total_fuel)
     grid.purge_grid()
