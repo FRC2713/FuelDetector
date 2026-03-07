@@ -14,7 +14,9 @@ class FuelCluster:
 
     def add_grid_cell(self, cell_x: int, cell_y: int, cell_fuel_count: int):
         self.update_fuel_count(cell_fuel_count)
-        print(self.fuel_count)
+        #if(self.fuel_count >= 1):
+            #print(self.fuel_count)
+        
         if(not(self.fuel_count == 0)):
             weighted_cell = cell_fuel_count / self.fuel_count
             weighted_cluster = self.fuel_count - cell_fuel_count / self.fuel_count

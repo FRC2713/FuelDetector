@@ -48,6 +48,7 @@ class FuelGrid:
                 self.grid[x][y] += 1
                 self.total_fuel += 1
 
+                #print(not(right_x == x))
                 if(not(right_x == x)):
                     self.grid[right_x][y] += 1
                 if(not(left_x == x)):
@@ -121,7 +122,7 @@ class FuelGrid:
         self.total_fuel = 0
 
 
-grid = FuelGrid(3, 3, 60)
+grid = FuelGrid(12, 6, 60)
 print("Program started")
 while True:
     values = fuelValues.get()
@@ -133,7 +134,7 @@ while True:
     large = grid.largest_cluster(clusters)
     #print(large.fuel_count)
     heading: float = grid.get_heading(large)
-    #print(heading)
+    print(heading)
     fuelHeading.set(heading)
     totalFuel.set(grid.total_fuel)
     grid.purge_grid()
