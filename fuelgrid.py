@@ -39,24 +39,25 @@ class FuelGrid:
             if(float(fuelParams[4]) > FuelGrid.fuel_chance_threshold):
                 x = round(float(fuelParams[0]) / (FuelGrid.image_width / (self.grid_width)))
                 y = round(float(fuelParams[1]) / (FuelGrid.image_height / (self.grid_height)))
+                #print("(" + fuelParams[0] + ", " + fuelParams[1] + ")" + " (" + str(x) + ", " + str(y) + ")")
 
-                top_y = round((float(fuelParams[1]) - (float(fuelParams[3]) / 2)) / (FuelGrid.image_height / (self.grid_height)))
-                bottom_y = round((float(fuelParams[1]) + (float(fuelParams[3]) / 2)) / (FuelGrid.image_height / (self.grid_height)))
-                right_x = round((float(fuelParams[0]) + (float(fuelParams[2]) / 2)) / (FuelGrid.image_width / (self.grid_width)))
-                left_x = round((float(fuelParams[0]) - (float(fuelParams[2]) / 2)) / (FuelGrid.image_width / (self.grid_width)))
+                #top_y = round((float(fuelParams[1]) - (float(fuelParams[3]) / 2)) / (FuelGrid.image_height / (self.grid_height)))
+                #bottom_y = round((float(fuelParams[1]) + (float(fuelParams[3]) / 2)) / (FuelGrid.image_height / (self.grid_height)))
+                #right_x = round((float(fuelParams[0]) + (float(fuelParams[2]) / 2)) / (FuelGrid.image_width / (self.grid_width)))
+                #left_x = round((float(fuelParams[0]) - (float(fuelParams[2]) / 2)) / (FuelGrid.image_width / (self.grid_width)))
 
                 self.grid[x][y] += 1
                 self.total_fuel += 1
 
                 #print(not(right_x == x))
-                if(not(right_x == x)):
-                    self.grid[right_x][y] += 1
-                if(not(left_x == x)):
-                    self.grid[left_x][y] += 1
-                if(not(top_y == y)):
-                    self.grid[x][top_y] += 1
-                if(not(bottom_y == y)):
-                    self.grid[x][bottom_y] += 1
+                #if(not(right_x == x)):
+                    #self.grid[right_x][y] += 1
+                #if(not(left_x == x)):
+                    #self.grid[left_x][y] += 1
+                #if(not(top_y == y)):
+                    #self.grid[x][top_y] += 1
+                #if(not(bottom_y == y)):
+                    #self.grid[x][bottom_y] += 1
     
     def split_fuel_string(self, string: str):
         string_list = string.split(";")
@@ -100,7 +101,7 @@ class FuelGrid:
         if (cluster.fuel_count > 0):
             cluster.avg_x
 
-            avgX = (cluster.avg_x * (FuelGrid.image_width / self.grid_width)) - (FuelGrid.image_width / 2)
+            avgX = (cluster.avg_x * (FuelGrid.image_width / self.grid_width + 1)) - (FuelGrid.image_width / 2)
             degreesPerPixel: float = self.FOV / FuelGrid.image_width
             #print(str(avgX) + ", " + str(cluster.avg_x))
             return -(avgX * degreesPerPixel)
@@ -122,7 +123,7 @@ class FuelGrid:
         self.total_fuel = 0
 
 
-grid = FuelGrid(12, 6, 60)
+grid = FuelGrid(12, 12, 60)
 print("Program started")
 while True:
     values = fuelValues.get()
@@ -134,7 +135,7 @@ while True:
     large = grid.largest_cluster(clusters)
     #print(large.fuel_count)
     heading: float = grid.get_heading(large)
-    print(heading)
+    #print(heading)
     fuelHeading.set(heading)
     totalFuel.set(grid.total_fuel)
     grid.purge_grid()
