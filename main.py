@@ -1,8 +1,8 @@
 """
 Fuel detector for Raspberry Pi AI Kit (Hailo): USB camera -> yolov11n.hef -> NetworkTables.
 
-Requires a Pi environment with Hailo GStreamer stacks installed (e.g. hailo-rpi5-examples
-or hailo-apps). See README.md for setup.
+Requires a Pi environment with hailo-apps installed and its setup_env.sh sourced.
+See README.md for setup.
 
 Preserves the legacy `fuelData` format: x_center,y_center,width,height,confidence;...
 (pixel coordinates, matching fuelgrid.py expectations for 640x480).
@@ -43,7 +43,7 @@ def _parse_fuel_argv() -> tuple[argparse.Namespace, list[str]]:
         default=os.environ.get(
             "HAILO_ENV_FILE", "/usr/local/hailo/resources/.env"
         ),
-        help="Path to Hailo .env file (sets TAPPAS paths). Default: /usr/local/hailo/resources/.env",
+        help="Path to Hailo .env file (sets TAPPAS paths). Loaded by hailo-apps setup_env.sh. Default: /usr/local/hailo/resources/.env",
     )
     p.add_argument(
         "--width",
@@ -99,64 +99,45 @@ def _bbox_to_xywh_pixels(bbox, frame_w: int | None, frame_h: int | None) -> tupl
 
 
 def _import_hailo_stack():
-    """Support both current hailo-apps (hailo_apps.python.*) and legacy hailo-rpi5-examples paths."""
-    bundles = (
-        (
-            "hailo_apps.python.pipeline_apps.detection.detection_pipeline",
-            "hailo_apps.python.core.gstreamer.gstreamer_app",
-            "hailo_apps.python.core.common.buffer_utils",
-            "hailo_apps.python.core.gstreamer.gstreamer_helper_pipelines",
-            "hailo_apps.python.core.common.core",
-        ),
-        (
-            "hailo_apps.hailo_app_python.apps.detection.detection_pipeline",
-            "hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app",
-            "hailo_apps.hailo_app_python.core.common.buffer_utils",
-            "hailo_apps.hailo_app_python.core.gstreamer.gstreamer_helper_pipelines",
-            "hailo_apps.hailo_app_python.core.common.core",
-        ),
-    )
-    errors: list[str] = []
-    for det_m, gst_m, buf_m, hp_m, core_m in bundles:
-        try:
-            det = __import__(det_m, fromlist=["GStreamerDetectionApp"])
-            gst = __import__(gst_m, fromlist=["app_callback_class"])
-            buf = __import__(buf_m, fromlist=["get_caps_from_pad"])
-            hp = __import__(
-                hp_m,
-                fromlist=[
-                    "DISPLAY_PIPELINE",
-                    "INFERENCE_PIPELINE",
-                    "INFERENCE_PIPELINE_WRAPPER",
-                    "SOURCE_PIPELINE",
-                    "TRACKER_PIPELINE",
-                    "USER_CALLBACK_PIPELINE",
-                ],
-            )
-            cor = __import__(core_m, fromlist=["get_pipeline_parser"])
-            return {
-                "GStreamerDetectionApp": det.GStreamerDetectionApp,
-                "app_callback_class": gst.app_callback_class,
-                "get_caps_from_pad": buf.get_caps_from_pad,
-                "DISPLAY_PIPELINE": hp.DISPLAY_PIPELINE,
-                "INFERENCE_PIPELINE": hp.INFERENCE_PIPELINE,
-                "INFERENCE_PIPELINE_WRAPPER": hp.INFERENCE_PIPELINE_WRAPPER,
-                "SOURCE_PIPELINE": hp.SOURCE_PIPELINE,
-                "TRACKER_PIPELINE": hp.TRACKER_PIPELINE,
-                "USER_CALLBACK_PIPELINE": hp.USER_CALLBACK_PIPELINE,
-                "get_pipeline_parser": cor.get_pipeline_parser,
-                "stack_name": det_m.split(".")[1],
-            }
-        except ImportError as e:
-            errors.append(f"{det_m}: {e}")
-            continue
-    msg = (
-        "Could not import Hailo detection stack (tried hailo_apps.python and "
-        "hailo_apps.hailo_app_python). Install/configure per README (Hailo Pi examples "
-        "or hailo-apps). Errors:\n  - "
-        + "\n  - ".join(errors)
-    )
-    raise ImportError(msg)
+    """Import hailo-apps (hailo_apps.python.*) detection pipeline modules."""
+    det_m = "hailo_apps.python.pipeline_apps.detection.detection_pipeline"
+    gst_m = "hailo_apps.python.core.gstreamer.gstreamer_app"
+    buf_m = "hailo_apps.python.core.common.buffer_utils"
+    hp_m = "hailo_apps.python.core.gstreamer.gstreamer_helper_pipelines"
+    core_m = "hailo_apps.python.core.common.core"
+    try:
+        det = __import__(det_m, fromlist=["GStreamerDetectionApp"])
+        gst = __import__(gst_m, fromlist=["app_callback_class"])
+        buf = __import__(buf_m, fromlist=["get_caps_from_pad"])
+        hp = __import__(
+            hp_m,
+            fromlist=[
+                "DISPLAY_PIPELINE",
+                "INFERENCE_PIPELINE",
+                "INFERENCE_PIPELINE_WRAPPER",
+                "SOURCE_PIPELINE",
+                "TRACKER_PIPELINE",
+                "USER_CALLBACK_PIPELINE",
+            ],
+        )
+        cor = __import__(core_m, fromlist=["get_pipeline_parser"])
+        return {
+            "GStreamerDetectionApp": det.GStreamerDetectionApp,
+            "app_callback_class": gst.app_callback_class,
+            "get_caps_from_pad": buf.get_caps_from_pad,
+            "DISPLAY_PIPELINE": hp.DISPLAY_PIPELINE,
+            "INFERENCE_PIPELINE": hp.INFERENCE_PIPELINE,
+            "INFERENCE_PIPELINE_WRAPPER": hp.INFERENCE_PIPELINE_WRAPPER,
+            "SOURCE_PIPELINE": hp.SOURCE_PIPELINE,
+            "TRACKER_PIPELINE": hp.TRACKER_PIPELINE,
+            "USER_CALLBACK_PIPELINE": hp.USER_CALLBACK_PIPELINE,
+            "get_pipeline_parser": cor.get_pipeline_parser,
+        }
+    except ImportError as e:
+        raise ImportError(
+            f"Could not import hailo-apps detection stack ({det_m}): {e}\n"
+            "Install hailo-apps and source its setup_env.sh before running."
+        ) from e
 
 
 def _build_hailo_argv(fuel: argparse.Namespace, passthrough: list[str]) -> list[str]:
@@ -209,15 +190,10 @@ def main() -> None:
     get_pipeline_parser = stack["get_pipeline_parser"]
 
     try:
-        try:
-            from hailo_apps.python.core.common.hailo_logger import get_logger
-        except ImportError:
-            from hailo_apps.hailo_app_python.core.common.hailo_logger import get_logger
-
+        from hailo_apps.python.core.common.hailo_logger import get_logger
         hailo_logger = get_logger("fueldetector.main")
     except ImportError:
         import logging
-
         hailo_logger = logging.getLogger("fueldetector.main")
 
     import ntinit
@@ -304,7 +280,7 @@ def main() -> None:
     print(
         f"FuelDetector: HEF={fuel.hef_path} input={fuel.input} "
         f"{fuel.width}x{fuel.height}@{fuel.frame_rate} headless={fuel.headless} "
-        f"tracker_class_id={fuel.tracker_class_id} (hailo stack: {stack['stack_name']})",
+        f"tracker_class_id={fuel.tracker_class_id}",
         flush=True,
     )
     app.run()
