@@ -91,7 +91,7 @@ flowchart LR
 
 ## Requirements and setup
 
-- **Python 3.10+** recommended.  
+- **Python 3.11+** recommended.  
 - A running **NetworkTables server** (roboRIO + driver station, or a local NT server for testing).
 
 ### Pi AI Kit — `main.py` (recommended on the coprocessor)
