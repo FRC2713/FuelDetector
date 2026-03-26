@@ -177,6 +177,8 @@ This process continuously reads `fuelData` and publishes:
 - Same or another process runs `fuelgrid.py`.
 - Robot code reads `clusterHeading` and `totalFuel` from NetworkTables and uses them for aiming/intake decisions.
 
+To start the **Pi AI Kit** pipeline (`main.py` + `fuelgrid.py`) automatically when the Pi boots, follow [docs/PI_BOOT_AUTOSTART.md](docs/PI_BOOT_AUTOSTART.md) (systemd, wrapper script, and config on the Pi).
+
 ## Operational Notes
 
 - Detector confidence threshold is currently set in `fuelgrid.py`:

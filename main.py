@@ -141,13 +141,17 @@ def _import_hailo_stack():
 
 
 def _build_hailo_argv(fuel: argparse.Namespace, passthrough: list[str]) -> list[str]:
+    repo_root = Path(__file__).resolve().parent
     hef = str(Path(fuel.hef_path).expanduser().resolve())
+    labels_json = str(repo_root / "fuel-labels.json")
     argv = [
         sys.argv[0],
         "--input",
         fuel.input,
         "--hef-path",
         hef,
+        "--labels-json",
+        labels_json,
         "--width",
         str(fuel.width),
         "--height",
@@ -219,12 +223,16 @@ def main() -> None:
             super().__init__(app_callback, user_data, parser=parser)
 
         def get_pipeline_string(self):
+            # GStreamerApp sets self.sync to the strings "true"/"false". SOURCE_PIPELINE
+            # expects a Python bool; a non-empty string is always truthy, so "false"
+            # wrongly enabled videorate+fps caps on live USB and let latency grow.
+            source_sync = str(self.sync).lower() == "true"
             source_pipeline = SOURCE_PIPELINE(
                 video_source=self.video_source,
                 video_width=self.video_width,
                 video_height=self.video_height,
                 frame_rate=self.frame_rate,
-                sync=self.sync,
+                sync=source_sync,
             )
             detection_pipeline = INFERENCE_PIPELINE(
                 hef_path=self.hef_path,
@@ -234,7 +242,12 @@ def main() -> None:
                 config_json=self.labels_json,
                 additional_params=self.thresholds_str,
             )
-            detection_pipeline_wrapper = INFERENCE_PIPELINE_WRAPPER(detection_pipeline)
+            # Smaller bypass queue when previewing: caps how many full-res frames can
+            # pile up waiting on inference vs display (default 20 adds noticeable lag).
+            bypass_bufs = 3 if not self._fuel_headless else 20
+            detection_pipeline_wrapper = INFERENCE_PIPELINE_WRAPPER(
+                detection_pipeline, bypass_max_size_buffers=bypass_bufs
+            )
             tracker_pipeline = TRACKER_PIPELINE(class_id=self._fuel_tracker_class_id)
             user_callback_pipeline = USER_CALLBACK_PIPELINE()
             video_sink = "fakesink" if self._fuel_headless else self.video_sink
@@ -251,11 +264,11 @@ def main() -> None:
             hailo_logger.debug("Fuel pipeline string: %s", pipeline_string)
             return pipeline_string
 
-    def app_callback(pad, info, user_data):
-        buffer = info.get_buffer()
+    def app_callback(element, buffer, user_data):
         if buffer is None:
-            return Gst.PadProbeReturn.OK
+            return
 
+        pad = element.get_static_pad("src")
         fmt, width, height = get_caps_from_pad(pad)
         roi = hailo.get_roi_from_buffer(buffer)
         detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
@@ -268,7 +281,7 @@ def main() -> None:
             box_string += f"{xc},{yc},{w},{h},{conf};"
 
         user_data.fuel_publish.set(box_string)
-        return Gst.PadProbeReturn.OK
+        return
 
     user_data = FuelUserData()
     app = FuelDetectorHailoApp(
