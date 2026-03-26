@@ -1,34 +1,37 @@
 import time
 import ntcore
 
-def getNT(clientName: str): 
+def getNT(clientName: str):
+    ntconf = "ntconfig.txt"
+    robotIP = ntconf.readline()
+    localIP = ntconf.readline()
     print("Scanning for NetworkTables...")
     time.sleep(1)
     inst = ntcore.NetworkTableInstance.getDefault()
     inst.startClient4(clientName)
-    inst.setServer("10.27.13.2")
+    inst.setServer(robotIP)
     robotConnected = inst.getTable("fuelDetector").getBooleanTopic("robotConnected").subscribe(False)
     time.sleep(0.1)
     connected = robotConnected.get()
     time.sleep(0.1)
     time.sleep(0.1) # Don't ask. I don't know.
     connected = robotConnected.get()
-    print("10.27.13.2 connection found? " + str(connected))
+    print("robot connection found? " + str(connected))
     if(not(connected)):
-        inst.setServer("127.0.0.1")
+        inst.setServer(localIP)
         time.sleep(0.1)
         time.sleep(0.1)
         connected = robotConnected.get()
         print()
-        print("127.0.0.1 (localhost) connection found? " + str(connected))
+        print("local connection found? " + str(connected))
         if(connected):
-            print("Server found at 127.0.0.1 (localhost)")
+            print("Server found at " + localIP + " (local)")
             return inst
         else:
             print("No NetworkTables server detected. Check IP addresses.")
             return inst
     else:
-        print("Server found at 10.27.13.2 (robot)")
+        print("Server found at " + robotIP + " (robot)")
         return inst
 
 def testNT(): 
