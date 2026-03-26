@@ -1,214 +1,272 @@
 # FuelDetector
 
-Real-time FRC vision pipeline that detects fuel in camera frames, publishes detections to NetworkTables, and computes a heading toward the densest fuel cluster.
+Real-time vision for FRC: find game pieces (“fuel”) in the camera image, publish detections over **NetworkTables**, and compute a **heading** toward the densest cluster so the robot can drive or aim toward a pile.
 
-## Overview
+**Typical use:** Raspberry Pi 5 + **AI Kit (Hailo)** on the robot runs `main.py` + `fuelgrid.py`. Driver station / roboRIO runs the NetworkTables server; robot code reads `clusterHeading` and `totalFuel`.
 
-This repository contains two logical stages:
+---
 
-1. **Detection stage**  
-   Runs object detection on live camera input and publishes detections as a serialized string. On the **Raspberry Pi AI Kit**, `main.py` uses **Hailo GStreamer** with your compiled `yolov11n.hef` and a **USB camera**. For laptop debugging, use `visual.py` (Ultralytics + OpenCV) or `rpi.py` (Pi Camera Module + Ultralytics).
+## How this README is organized
 
-2. **Clustering/targeting stage**  
-   Subscribes to detections, projects them into a grid, identifies the largest cluster, and publishes:
-   - `clusterHeading` (degrees to turn toward the largest cluster)
-   - `totalFuel` (count of accepted detections in the current frame)
+| Section | What you’ll find |
+|--------|-------------------|
+| [Architecture overview](#architecture-overview) | Pictures and vocabulary: detector vs cluster stage, NT topics |
+| [Repository layout](#repository-layout) | What each important file or folder is for |
+| [Requirements and setup](#requirements-and-setup) | What to install before you run anything |
+| [How to run](#how-to-run) | Copy-paste commands for Pi AI Kit and for laptop debug |
+| [Run automatically at boot (Pi)](#run-automatically-at-boot-pi) | Link to systemd / autostart guide |
+| [NetworkTables reference](#networktables-reference) | Table and topic names |
+| [Tuning and operational notes](#tuning-and-operational-notes) | Thresholds, grid size, camera assumptions |
+| [Performance improvement ideas](#performance-improvement-ideas) | Levers to try when you need speed or smoother control |
+| [Troubleshooting](#troubleshooting) | Common failures and what to check |
+| [Repository status](#repository-status) | Dependencies and lockfiles |
 
-All data is exchanged over the NetworkTables table `fuelDetector`.
+---
 
-## Architecture Breakdown
+## Architecture overview
 
-### Data flow
+### Two programs, one pipeline
 
-1. Camera frame is captured.
-2. Inference runs on the frame (Hailo NPU in `main.py` on Pi AI Kit, or Ultralytics in other scripts) and returns bounding boxes + confidence.
-3. Detections are published to `fuelDetector/fuelData` as:
-   - `x_center,y_center,width,height,confidence;...`
-4. Grid processor reads `fuelData`, filters detections by confidence threshold, and bins into a 2D grid.
-5. Largest cluster is selected and converted to a heading using camera FOV.
-6. Results are published:
-   - `fuelDetector/clusterHeading`
-   - `fuelDetector/totalFuel`
+FuelDetector splits work into **two processes** that talk only through NetworkTables (so they can run on the same Pi or be split later if you redesign):
 
-### Module map
+1. **Detector** (`main.py` on Pi AI Kit, or `visual.py` / `rpi.py` for experiments)  
+   Camera → neural network → list of boxes → serialized string on NT.
 
-- `main.py`  
-  **Raspberry Pi AI Kit** detector: USB camera → Hailo GStreamer pipeline → `yolov11n.hef`. Publishes `fuelData`. Requires Hailo’s Python/GStreamer stack (see below).
+2. **Cluster processor** (`fuelgrid.py`)  
+   Reads that string, treats detections as points on a 2D grid, finds the **largest connected cluster**, converts it to a **heading in degrees**, publishes heading + fuel count.
 
-- `visual.py`  
-  Detector with OpenCV visualization window for debugging. Publishes `fuelData`.
+Both programs call `ntinit.getNT(...)` so they join the same NT **client** convention (robot at `10.27.13.2`, then localhost fallback). See [ntinit.py](ntinit.py).
 
-- `rpi.py`  
-  Raspberry Pi camera detector path using `picamera2`. Publishes `fuelData`.
+### Data flow (conceptual)
 
-- `fuelgrid.py`  
-  Subscriber + clustering process. Publishes `clusterHeading` and `totalFuel`.
+```mermaid
+flowchart LR
+  cam[Camera]
+  det[Detector main.py]
+  nt1[fuelData string]
+  grid[fuelgrid.py]
+  nt2[clusterHeading totalFuel]
+  rob[Robot code]
 
-- `fuelcluster.py`  
-  Helper class representing cluster aggregate state (`fuel_count`, average position).
-
-- `ntinit.py`  
-  NetworkTables setup helper. Tries robot address `10.27.13.2`, then localhost `127.0.0.1`.
-
-## NetworkTables Topics
-
-Table: `fuelDetector`
-
-- `fuelData` (`string`, published by detector)
-- `clusterHeading` (`double`, published by `fuelgrid.py`)
-- `totalFuel` (`integer`, published by `fuelgrid.py`)
-- `robotConnected` (`boolean`, expected to be provided by server/robot for connection detection)
-
-## Requirements
-
-- Python 3.10+ recommended
-- A running NetworkTables server (robot or localhost)
-
-### Raspberry Pi AI Kit (`main.py`)
-
-- `yolov11n.hef` in the repository root (or pass `--hef-path`)
-- USB camera (default device `/dev/video0`, or pass `--input` / use `usb` for auto-detect)
-- Hailo software stack for Raspberry Pi: follow [Hailo RPi5 examples](https://github.com/hailo-ai/hailo-rpi5-examples) or [hailo-apps](https://github.com/hailo-ai/hailo-apps) installation so that:
-  - `hailo` Python module and GStreamer plugins are available
-  - `HAILO_ENV_FILE` points at your Hailo `.env` (default in code: `/usr/local/hailo/resources/.env`)
-  - Typical workflow: `source setup_env.sh` from the Hailo examples repo, then run `main.py` from the same environment
-
-Python packages for this path (usually provided by the Hailo venv + system packages):
-
-- `ntcore`
-- `PyGObject` (`gi`) for GStreamer
-- Hailo’s `hailo_apps` package (`hailo_apps.python.*` or legacy `hailo_apps.hailo_app_python.*`)
-
-### Desktop / legacy Ultralytics paths (`visual.py`, `rpi.py`)
-
-- A trained YOLO weights file `best302.pt` in the repository root
-- `ultralytics`, `ntcore`, `opencv-python` (`visual.py`)
-- `picamera2` (`rpi.py`, Pi Camera Module)
-
-## Setup
-
-### Pi AI Kit (recommended for competition coprocessor)
-
-1. Install the Hailo Raspberry Pi environment per Hailo’s docs (examples repo `install.sh` / `setup_env.sh`).
-2. Copy or build `yolov11n.hef` into this repo root (same directory as `main.py`).
-3. In the Hailo-enabled shell:
-
-```bash
-pip install ntcore   # if not already in that environment
+  cam --> det
+  det --> nt1
+  nt1 --> grid
+  grid --> nt2
+  nt2 --> rob
 ```
 
-Optional environment variables:
+### What travels on NetworkTables
+
+- **`fuelData`** — One string per frame: semicolon-separated detections; each detection is `x_center,y_center,width,height,confidence` in **pixels** (pipeline assumes **640×480** geometry in `fuelgrid.py`).
+- **`clusterHeading`** — Double: degrees to turn toward the largest cluster (sign convention is defined in `fuelgrid.py`).
+- **`totalFuel`** — Integer: accepted detection count for that frame (after confidence filtering).
+
+---
+
+## Repository layout
+
+**Entry points (Python, repo root)**
+
+| File | Role |
+|------|------|
+| [main.py](main.py) | **Competition path:** Hailo + GStreamer + USB camera → publishes `fuelData`. Pi AI Kit. |
+| [fuelgrid.py](fuelgrid.py) | Subscribes `fuelData`, publishes `clusterHeading` / `totalFuel`. |
+| [ntinit.py](ntinit.py) | NetworkTables client bootstrap (robot IP, localhost). |
+| [fuelcluster.py](fuelcluster.py) | Data structure for merged grid cells (`fuel_count`, average position). |
+| [visual.py](visual.py) | **Debug:** Ultralytics + OpenCV window; laptop / webcam; publishes `fuelData`. |
+| [rpi.py](rpi.py) | **Debug / alternate:** Pi CSI camera + Ultralytics; publishes `fuelData`. |
+
+**Models and config (often at repo root)**
+
+- `yolov11n.hef` — Hailo compiled model for `main.py` (build or copy per your team).
+- `best302.pt` — Ultralytics weights for `visual.py` / `rpi.py`.
+- `data.yaml`, Roboflow README stubs — dataset / training metadata (see `dataset/`).
+
+**Folders**
+
+- `docs/` — Extra guides; includes **[Pi boot / systemd autostart](docs/PI_BOOT_AUTOSTART.md)**.
+- `dataset/` — Training images and labels (large; not required on the robot at runtime).
+
+---
+
+## Requirements and setup
+
+- **Python 3.10+** recommended.  
+- A running **NetworkTables server** (roboRIO + driver station, or a local NT server for testing).
+
+### Pi AI Kit — `main.py` (recommended on the coprocessor)
+
+1. Install the **Hailo** stack for Raspberry Pi ([Hailo RPi5 examples](https://github.com/hailo-ai/hailo-rpi5-examples) or [hailo-apps](https://github.com/hailo-ai/hailo-apps)): `hailo` Python module, GStreamer plugins, `setup_env.sh`.
+2. Place **`yolov11n.hef`** in the repo root (or pass `--hef-path`).
+3. USB camera (default `/dev/video0`, or `--input` / `usb`).
+
+In a shell where you have sourced Hailo’s environment:
+
+```bash
+pip install ntcore   # if not already in that venv
+```
+
+You normally need: **`ntcore`**, **PyGObject (`gi`)**, **Hailo `hailo_apps`** (see upstream docs).
+
+**Useful environment variables** (also see `main.py` `--help`):
 
 | Variable | Purpose |
 |----------|---------|
-| `HAILO_ENV_FILE` | Path to Hailo `.env` (overrides default) |
-| `FUEL_HEF_PATH` | Default `.hef` path if you omit `--hef-path` |
-| `FUEL_CAMERA` | Default camera (`/dev/video0` or `usb`) |
-| `FUEL_TRACKER_CLASS_ID` | Hailo tracker class id (`-1` = all classes, `0` for single-class models) |
+| `HAILO_ENV_FILE` | Path to Hailo `.env` |
+| `FUEL_HEF_PATH` | Default `.hef` path |
+| `FUEL_CAMERA` | Default camera device or `usb` |
+| `FUEL_FRAME_WIDTH` / `FUEL_FRAME_HEIGHT` / `FUEL_FRAME_RATE` | Capture size and FPS |
+| `FUEL_TRACKER_CLASS_ID` | `-1` = all classes; `0` typical for single-class models |
 
-### Desktop / `visual.py` / `rpi.py`
-
-Create a virtual environment and install dependencies:
+### Laptop / Ultralytics — `visual.py` or `rpi.py`
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install ultralytics ntcore opencv-python
-```
-
-For Raspberry Pi camera support (CSI, not USB):
-
-```bash
+# Pi CSI camera only:
 pip install picamera2
 ```
 
-Place weights at:
+Put **`best302.pt`** in the repo root for Ultralytics scripts.
 
-```text
-./best302.pt
-```
+---
 
-## How To Run
+## How to run
 
-Run the pipeline as **two processes**: detector + cluster processor.
+You always run **two terminals** (or two services): **detector** and **`fuelgrid.py`**.
 
-### 1) Start detector process
+### 1. Detector
 
-**Raspberry Pi AI Kit + USB camera + Hailo** (from Hailo-configured shell):
+**Pi AI Kit (Hailo + USB):**
 
 ```bash
 source /path/to/hailo-rpi5-examples/setup_env.sh   # or your hailo-apps setup
 cd /path/to/FuelDetector
 python main.py
-# Optional: python main.py --input /dev/video1 --hef-path ./yolov11n.hef --no-headless
 ```
 
-`--no-headless` uses the normal video sink (e.g. monitor attached). Default is headless (`fakesink`) for coprocessor use.
+Useful options:
 
-Debug visualization (laptop / webcam, Ultralytics):
+```bash
+python main.py --input /dev/video1 --hef-path ./yolov11n.hef --no-headless
+```
+
+- Default is **`--headless`** (`fakesink`): no display, good for a coprocessor.
+- **`--no-headless`**: show video on a monitor (debug).
+
+**Laptop / webcam:**
 
 ```bash
 python visual.py
 ```
 
-Raspberry Pi **CSI** camera + Ultralytics (`rpi.py`):
+**Pi with CSI camera (Ultralytics):**
 
 ```bash
 python rpi.py
 ```
 
-### 2) Start cluster processor
+### 2. Cluster processor (second terminal)
 
-In a second terminal:
+Same machine as the detector (typical on the Pi):
 
 ```bash
+cd /path/to/FuelDetector
 python fuelgrid.py
 ```
 
-This process continuously reads `fuelData` and publishes:
+Use the **same** Python environment that has **`ntcore`** installed (often the Hailo venv if that’s where you installed it).
 
-- `clusterHeading`
-- `totalFuel`
+`fuelgrid.py` publishes **`clusterHeading`** and **`totalFuel`** continuously from the latest `fuelData`.
 
-## Typical Deployment Pattern
+---
 
-- Vision coprocessor runs `main.py` on **Pi AI Kit**, or `visual.py` / `rpi.py` for Ultralytics-based setups.
-- Same or another process runs `fuelgrid.py`.
-- Robot code reads `clusterHeading` and `totalFuel` from NetworkTables and uses them for aiming/intake decisions.
+## Run automatically at boot (Pi)
 
-To start the **Pi AI Kit** pipeline (`main.py` + `fuelgrid.py`) automatically when the Pi boots, follow [docs/PI_BOOT_AUTOSTART.md](docs/PI_BOOT_AUTOSTART.md) (systemd, wrapper script, and config on the Pi).
+To start **`main.py`** and **`fuelgrid.py`** on power-up without logging in (systemd, wrapper script, `/etc/default` config), follow the step-by-step guide:
 
-## Operational Notes
+**[docs/PI_BOOT_AUTOSTART.md](docs/PI_BOOT_AUTOSTART.md)**
 
-- Detector confidence threshold is currently set in `fuelgrid.py`:
-  - `FuelGrid.fuel_chance_threshold = 0.75`
-- Grid size/FOV tuning is in `fuelgrid.py`:
-  - `FuelGrid(12, 12, 60)`
-- Camera geometry assumptions are:
-  - `image_width = 640`
-  - `image_height = 480`
-- `ntinit.py` first attempts robot NT server (`10.27.13.2`) and then localhost.
+---
+
+## NetworkTables reference
+
+**Table:** `fuelDetector`
+
+| Topic | Type | Publisher |
+|-------|------|-----------|
+| `fuelData` | string | Detector (`main.py`, `visual.py`, `rpi.py`) |
+| `clusterHeading` | double | `fuelgrid.py` |
+| `totalFuel` | integer | `fuelgrid.py` |
+| `robotConnected` | boolean | Expected from **robot / server** (used in `ntinit.py` to pick server address) |
+
+---
+
+## Tuning and operational notes
+
+These knobs change behavior without retraining:
+
+- **Confidence filter:** `FuelGrid.fuel_chance_threshold` in [fuelgrid.py](fuelgrid.py) (default `0.75`).
+- **Grid and FOV:** Constructor `FuelGrid(12, 12, 60)` in [fuelgrid.py](fuelgrid.py) — grid resolution and horizontal FOV in degrees (for heading math).
+- **Geometry:** `FuelGrid.image_width` / `image_height` default **640** / **480**; if you change capture size in `main.py`, update `fuelgrid.py` to match or headings will be wrong.
+- **NT addressing:** [ntinit.py](ntinit.py) tries **`10.27.13.2`**, then **`127.0.0.1`** based on `robotConnected`.
+
+---
+
+## Performance improvement ideas
+
+Use this as a checklist when latency is high, CPU is maxed, or headings feel sluggish. **Measure** (loop time, NT publish rate, camera FPS) before and after changes.
+
+**Inference and pipeline (`main.py`, Hailo path)**
+
+- **Resolution:** Lower width/height can reduce NPU and USB load. If you change it, update `fuelgrid.py` image dimensions and revalidate heading accuracy.
+- **Frame rate:** Lower `--frame-rate` / `FUEL_FRAME_RATE` if the rest of the stack cannot keep up (reduces work and bandwidth).
+- **Headless coprocessor:** Stay headless on the robot; preview mode uses a smaller bypass queue in code paths meant for display, but headless is still the right default for competition.
+- **Tracker class:** For a single-class model, `--tracker-class-id 0` (or env) avoids extra tracker work on irrelevant classes.
+- **Model:** A smaller/faster `.hef` may trade accuracy for FPS (team decision; recompile / retrain as needed).
+
+**Clustering (`fuelgrid.py`)**
+
+- **Grid size:** A coarser grid (fewer cells) is cheaper CPU and may be enough for “find the big pile”; finer grid costs more per frame.
+- **Thresholds:** Higher `fuel_chance_threshold` reduces false positives but may drop faint detections; tune from logged frames.
+
+**System and I/O**
+
+- **USB:** Use a short, quality cable; a powered hub can help if the Pi brownouts the camera.
+- **Thermal / power:** Throttling from heat or weak supply shows up as uneven FPS; fix cooling and power before chasing software.
+- **Network:** Ensure the vision Pi and roboRIO are on a stable segment; NT flapping hurts any closed-loop use of `clusterHeading`.
+
+**Software follow-ups (not implemented here)**
+
+- Configurable robot IP (today fixed in `ntinit.py`) for multi-environment testing.
+- Throttle or coalesce `fuelData` publishes if NT string size or rate becomes an issue (measure first).
+
+---
 
 ## Troubleshooting
 
-- **No NetworkTables connection**
-  - Verify robot IP and subnet (`10.27.13.2`) or run local NT server.
-  - Check whether `robotConnected` topic is present/updated by your server.
+- **No NetworkTables connection**  
+  Check `10.27.13.2`, subnet, and firewall. Confirm `robotConnected` is published as your robot code expects.
 
-- **No detections**
-  - **Hailo (`main.py`):** Confirm `yolov11n.hef` path, USB device (`v4l2-ctl --list-devices`), and that `HAILO_ENV_FILE` / `TAPPAS_POSTPROC_PATH` are set (source `setup_env.sh`). Try `--tracker-class-id 0` for a single-class model.
-  - **Ultralytics:** Confirm `best302.pt` exists and camera index/source matches the model.
+- **No detections (Hailo)**  
+  Verify `.hef` path, camera device (`v4l2-ctl --list-devices`), source `setup_env.sh`, `HAILO_ENV_FILE` / TAPPAS paths. Try `--tracker-class-id 0` for single-class models.
 
-- **No heading updates**
-  - Ensure `fuelgrid.py` is running in parallel with detector process.
-  - Inspect `fuelData` topic to verify detections are being published.
+- **No detections (Ultralytics)**  
+  Confirm `best302.pt` exists and camera index matches.
 
-- **Raspberry Pi script issues**
-  - `rpi.py` may require validation/tweaks for frame capture order depending on environment.
-- **`main.py` import errors on Pi**
-  - Install/activate the Hailo examples or `hailo-apps` Python environment; `main.py` needs `hailo`, `gi.repository.Gst`, and `hailo_apps` detection pipelines.
+- **No heading updates**  
+  Ensure `fuelgrid.py` is running. Inspect `fuelData` in Glass, AdvantageScope, or your NT viewer.
 
-## Repository Status
+- **`main.py` import errors**  
+  Use the Hailo examples / `hailo-apps` Python environment with `hailo`, GStreamer `gi`, and `hailo_apps`.
 
-This repository currently has no lockfile/requirements file; dependency installation is manual as shown above.
+- **`rpi.py` quirks**  
+  CSI capture order can vary by OS; validate on your hardware.
+
+---
+
+## Repository status
+
+There is no checked-in lockfile or single `requirements.txt` covering every path; install dependencies manually as in [Requirements and setup](#requirements-and-setup).
