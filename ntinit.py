@@ -4,7 +4,9 @@ import ntcore
 def getNT(clientName: str):
     ntconf = open("ntconfig.txt")
     robotIP = str(ntconf.readline())
+    print("robot address: " + robotIP);
     localIP = str(ntconf.readline())
+    print("robot address: " + localIP);
     ntconf.close()
     print("Scanning for NetworkTables...")
     time.sleep(1)
