@@ -6,7 +6,7 @@ def getNT(clientName: str):
     robotIP = str(ntconf.readline())
     print("robot address: " + robotIP);
     localIP = str(ntconf.readline())
-    print("robot address: " + localIP);
+    print("local address: " + localIP);
     ntconf.close()
     print("Scanning for NetworkTables...")
     time.sleep(1)
