@@ -3,8 +3,8 @@ import ntcore
 
 def getNT(clientName: str):
     ntconf = open("ntconfig.txt")
-    robotIP = ntconf.readline()
-    localIP = ntconf.readline()
+    robotIP = str(ntconf.readline())
+    localIP = str(ntconf.readline())
     ntconf.close()
     print("Scanning for NetworkTables...")
     time.sleep(1)
