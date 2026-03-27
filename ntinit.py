@@ -25,6 +25,7 @@ def getNT(clientName: str):
         inst.setServer(localIP)
         time.sleep(0.1)
         time.sleep(0.1)
+        time.sleep(0.1)
         connected = robotConnected.get()
         print()
         print("local connection found? " + str(connected))
