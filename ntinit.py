@@ -2,7 +2,7 @@ import time
 import ntcore
 
 def getNT(clientName: str):
-    ntconf = "ntconfig.txt"
+    ntconf = open("ntconfig.txt")
     robotIP = ntconf.readline()
     localIP = ntconf.readline()
     ntconf.close()
