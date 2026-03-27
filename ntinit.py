@@ -8,6 +8,7 @@ def getNT(clientName: str):
     localIP = str(ntconf.readline())
     print("local address: " + localIP);
     ntconf.close()
+    time.sleep(1)
     print("Scanning for NetworkTables...")
     time.sleep(1)
     inst = ntcore.NetworkTableInstance.getDefault()
