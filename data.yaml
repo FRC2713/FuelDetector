@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ['fuel']
+
+roboflow:
+  workspace: test-sdfw9
+  project: rebuilt-frc-2026
+  version: 4
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/test-sdfw9/rebuilt-frc-2026/dataset/4
