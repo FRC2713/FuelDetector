@@ -92,7 +92,7 @@ flowchart LR
 ## Requirements and setup
 
 - **Python 3.11+** recommended.  
-- A running **NetworkTables server** (roboRIO + driver station, or a local NT server for testing).
+- A running **NetworkTables server** (roboRIO + driver station, a simulated robot using the real DS, or a local NT server for testing).
 
 ### Pi AI Kit — `main.py` (recommended on the coprocessor)
 
@@ -135,7 +135,7 @@ Put **`best302.pt`** in the repo root for Ultralytics scripts.
 
 ## How to run
 
-You always run **two terminals** (or two services): **detector** and **`fuelgrid.py`**.
+You always run **two terminals** (or two services): **detector** and **`fuelgrid.py`**. Which one starts first does not matter, as neither are not strictly dependent on the other running
 
 ### 1. Detector
 
