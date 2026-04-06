@@ -123,7 +123,7 @@ class FuelGrid:
         self.total_fuel = 0
 
 
-grid = FuelGrid(12, 12, 60)
+grid = FuelGrid(12, 12, 71)
 print("Program started")
 while True:
     values = fuelValues.get()
