@@ -2,5 +2,6 @@ venv/
 .venv/
 venv2/
 __pycache__
-hailort.log
 ntconfig.txt
+hailort.log
+hailort.1.log
