@@ -63,8 +63,8 @@ def _parse_fuel_argv() -> tuple[argparse.Namespace, list[str]]:
         "--frame-rate",
         "-f",
         type=int,
-        default=int(os.environ.get("FUEL_FRAME_RATE", "30")),
-        help="USB camera frame rate cap (default 30).",
+        default=int(os.environ.get("FUEL_FRAME_RATE", "60")),
+        help="USB camera frame rate cap (default 60).",
     )
     p.add_argument(
         "--headless",
@@ -227,13 +227,16 @@ def main() -> None:
             # expects a Python bool; a non-empty string is always truthy, so "false"
             # wrongly enabled videorate+fps caps on live USB and let latency grow.
             source_sync = str(self.sync).lower() == "true"
+            print("self.framerate :"  + str(self.frame_rate))
             source_pipeline = SOURCE_PIPELINE(
                 video_source=self.video_source,
                 video_width=self.video_width,
                 video_height=self.video_height,
                 frame_rate=self.frame_rate,
                 sync=source_sync,
+                no_webcam_compression=True
             )
+            print("Source pipeline is: " + str(source_pipeline))
             detection_pipeline = INFERENCE_PIPELINE(
                 hef_path=self.hef_path,
                 post_process_so=self.post_process_so,
