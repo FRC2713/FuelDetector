@@ -1,7 +1,7 @@
 import time
 import ntcore
 
-def getNT(clientName: str):
+def getNT(clientName: str, ignore: bool):
     ntconf = open("ntconfig.txt")
     retryTime = float(ntconf.readline())
     print("Wait time: " + str(retryTime) + " seconds")
@@ -21,6 +21,9 @@ def getNT(clientName: str):
         inst = ntcore.NetworkTableInstance.getDefault()
         inst.startClient4(clientName)
         inst.setServer(robotIP)
+        if(ignore): 
+            print("Ignore flag set. Returning RobotIP NT server, may not be connected")
+            return inst
         robotConnected = inst.getTable("fuelDetector").getBooleanTopic("robotConnected").subscribe(False)
         time.sleep(0.1)
         connected = robotConnected.get()
