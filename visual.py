@@ -3,13 +3,12 @@ import cv2
 import ntinit
 
 # Load a model
-model = YOLO("./best302.pt")  # Usign older model as it's better at its job than newer ones and isn't greyscale
+model = YOLO("./best228newdata.pt")  # Usign older model as it's better at its job than newer ones and isn't greyscale
 inst = ntinit.getNT("testClient")
 fuelTable = inst.getTable("fuelDetector")
 fuelPublish = fuelTable.getStringTopic("fuelData").publish()
 
-# Run inference on the source
-results = model(source=0, stream=True)  # generator of Results objects
+results = model(source=0, stream=True, imgsz=(480, 640))  # generator of Results objects
 for result in results:
     # print(result.plot())
     cv2.imshow("output", result.plot())
