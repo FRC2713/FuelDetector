@@ -1,7 +1,7 @@
 import time
 import ntcore
 
-def getNT(clientName: str, ignore: bool):
+def getNT(clientName: str, ignore=False):
     ntconf = open("ntconfig.txt")
     retryTime = float(ntconf.readline())
     print("Wait time: " + str(retryTime) + " seconds")
