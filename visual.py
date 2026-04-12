@@ -3,7 +3,7 @@ import cv2
 import ntinit
 
 # Load a model
-model = YOLO("./best228newdata.pt")  # Usign older model as it's better at its job than newer ones and isn't greyscale
+model = YOLO("./best302.pt")  # Usign older model as it's better at its job than newer ones and isn't greyscale
 inst = ntinit.getNT("testClient")
 fuelTable = inst.getTable("fuelDetector")
 fuelPublish = fuelTable.getStringTopic("fuelData").publish()
