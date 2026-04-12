@@ -12,7 +12,7 @@ fuelHeading= fuelTable.getDoubleTopic("clusterHeading").publish()
 totalFuel = fuelTable.getIntegerTopic("totalFuel").publish()
 
 class FuelGrid: 
-    fuel_chance_threshold: float = 0.75
+    fuel_chance_threshold: float = 0.70
     fuel_density_threshold: int = 1
     image_width: int = 640
     image_height: int = 480
