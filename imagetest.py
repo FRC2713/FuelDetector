@@ -5,12 +5,12 @@ import ntinit
 # Test a single image for fuel detection
 
 # Load a model
-model = YOLO("./best302.pt")  # Usign older model as it's better at its job than newer ones and isn't greyscale
+model = YOLO("./best_211_new_data.pt")  # Usign older model as it's better at its job than newer ones and isn't greyscale
 inst = ntinit.getNT("testClient")
 fuelTable = inst.getTable("fuelDetector")
 fuelPublish = fuelTable.getStringTopic("fuelData").publish()
 
-results = model(source="blender_test_2.png", stream=True, imgsz=(480, 640))  # generator of Results objects
+results = model(source="test-images/blender_test_3_grey.png", stream=True, imgsz=(480, 640))  # generator of Results objects
 result = next(results)
 # print(result.plot())
 while True:
