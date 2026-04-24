@@ -10,7 +10,7 @@ inst = ntinit.getNT("testClient")
 fuelTable = inst.getTable("fuelDetector")
 fuelPublish = fuelTable.getStringTopic("fuelData").publish()
 
-results = model(source="test-images/blender_test_3_grey.png", stream=True, imgsz=(480, 640))  # generator of Results objects
+results = model(source="basic_test.png", stream=True, imgsz=(480, 640))  # generator of Results objects
 result = next(results)
 # print(result.plot())
 while True:
