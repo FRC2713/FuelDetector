@@ -125,7 +125,7 @@ class FuelGrid:
         self.total_fuel = 0
 
 
-grid = FuelGrid(3, 3, 71)
+grid = FuelGrid(12, 12, 71)
 print("Program started")
 if True: # debug flag, mostly for testing on single images to get less confusing and repetitive logs.
     while True:
@@ -152,6 +152,7 @@ else:
     clusters = grid.find_clusters()
     large = grid.largest_cluster(clusters)
     print("clusters: " + str(len(clusters)))
+    print(large.fuel_count)
     heading: float = grid.get_heading(large)
     print(heading)
     fuelHeading.set(heading)
