@@ -5,3 +5,7 @@ fuelTable = inst.getTable("fuelDetector")
 fuelValues = fuelTable.getStringTopic("fuelData").subscribe("")
 fuelHeading= fuelTable.getDoubleTopic("clusterHeading").publish()
 totalFuel = fuelTable.getIntegerTopic("totalFuel").publish()
+
+class FuelClustering {}
+
+print("Program started")
