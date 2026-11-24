@@ -1,6 +1,6 @@
 # FuelDetector
 
-Real-time vision for FRC: find game pieces (“fuel”) in the camera image, publish detections over **NetworkTables**, and compute a **heading** toward the densest cluster so the robot can drive or aim toward a pile.
+Real-time vision for FRC: find game pieces (Originally created for detecting “fuel” in 2026's game) in the camera image, publish detections over **NetworkTables**, and compute a **heading** toward the densest cluster so the robot can drive or aim toward a pile.
 
 **Typical use:** Raspberry Pi 5 + **AI Kit (Hailo)** on the robot runs `main.py` + `fuelgrid.py`. Driver station / roboRIO runs the NetworkTables server; robot code reads `clusterHeading` and `totalFuel`.
 
