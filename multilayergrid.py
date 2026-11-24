@@ -1,29 +1,38 @@
-class SinglelayerGrid:
-  def __init__(self, cellsX: int, cellsY: int):
-    self.cellsX: int = cellsX
-    self.cellsY: int = cellsY
-    self.cells = []
-    for w in range(cellsX):
-      self.cells.push([])
-      for h in range(celsY):
-        self.cells[w].push(None)
-  def addToGrid(self, x: int, y: int, value):
-    self.cells[x][y] = value
-  def getCell(self, x: int, y: int):
-    return self.cells[x][y]
+class SubgridParams:
+  def __init__(depth, div_x, div_y):
+    self.div_x = div_x
+    self.div_y = div_y
+    self.subgrids = []
+
+    for x in range(div_x):
+      self.subgrids.append([])
+      for y in range(div_y):
+        self.subgrids.append(0)
+    # print(self.subgrids); # Uncomment for debug
+  
+  def addGrid(x, y, subgrid):
+    self.subgrids[x][y] = subgrid;
+  def getParams(x, y):
+    return self.subgrids[x][y]
 
 class MultilayerGrid:
-  def __init__(self):
-    self.grids = SinglelayerGrid(1, 1)
-    self.totalDepth = 1
-
-  def addGrid(self, gridCellsX: int, gridCellsY: int, gridDepthCoords: list[list[int, int]], finalCoords: list[int, int]):
-    #Constructs a new gird layer at location gridDepthCoords with the number of cells provided in the X and Y directions
-    #gridDepthCoords is a path that tells this functon how to traverse the grid tree; it will start at the "top" grid and work "down". The coordinate pairs tell the function which grid cell to go into next. This is required even if only one grid cell exists to choose from. This does not attempt to check if a cell exists before "entering" it.
-    #finalCoords is the coordinates of which cell to add the grid to; do not include this in gridDepthCoords.
-    grid = SinglelayerGrid(gridCellsX, gridCellsY)
+  # depth: how deep the grid is in the grid tree
+  # div_x: how many times the grid should be divided horizontally (1 results in no division; values less than 1 are rounded up to 1)
+  # div_y: how many times the grid should be divided vertically (1 results in no division; values less than 1 are rounded up to 1)
+  # subgrid_params is a special object that defines the parameters for the MultilayerGrid objects that will be creaded as children of this one. Think of it as defining the shape of the tree.
+  def __init__(depth, div_x, div_y, subgrid_params):
+    self.depth = depth
+    self.div_x = div_x
+    self.div_y = div_y
+    self.total_subgrids = div_x * div_y
+    self.subgrid_params = subgrid_params
+    self.subgrids = []
+    self.OOI = [] # Objects of Intrest (aka fuel). See OOI class.
     
-    currentGrid = self.grids
-    for c in gridDepthCoords:
-      currentGrid = currentGrid.getCell(c[0], c[1])
-    currentGrid.addToGrid(finalCoords[0], finalCoords[1], grid)
+    for x in range(div_x):
+      subgrids.append([])
+      for y in range(div_y):
+        params = self.subgrid_params.getParams(x, y)
+        subgrids[x].append(MultilayerGrid(self.depth + 1, params.div_x, params.div_y, params.subgrids))
+  def getTotalOOI():
+    return len(self.OOI)
